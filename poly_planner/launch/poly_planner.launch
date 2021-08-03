@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+     <node name="rviz" pkg="rviz" type="rviz" output="screen"
+           args="-d $(find poly_planner)/config/rviz_config.rviz"> 
+    </node>
+    <node pkg="poly_planner" type="poly_planner_node" name="poly_planner" output="screen">
+        <!-- node parameters -->
+        <rosparam file="$(find poly_planner)/config/poly_planner_params.yaml" command="load" />
+    </node>
+</launch>

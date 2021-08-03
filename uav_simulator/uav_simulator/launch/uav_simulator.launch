@@ -1,0 +1,49 @@
+<launch>
+
+<node pkg="mockamap" type="mockamap_node" name="mockamap_node" output="screen">
+  <rosparam file="$(find uav_simulator)/config/mockamap.yaml"/>
+</node>
+
+<node name="rviz" pkg="rviz" type="rviz" 
+  args="-d $(find uav_simulator)/config/rviz.rviz">
+</node>
+
+<group ns="drone0">
+
+  <node pkg="nodelet" type="nodelet" name="manager" args="manager" output="screen"/>
+
+  <node pkg="nodelet" type="nodelet" name="so3_quadrotor"
+    args="load so3_quadrotor/Nodelet manager" output="screen">
+  <!-- <node pkg="nodelet" type="nodelet" name="so3_quadrotor"
+    args="standalone so3_quadrotor/Nodelet" output="screen"> -->
+    <rosparam file="$(find uav_simulator)/config/so3_quadrotor.yaml"/>
+    <remap from="~odom" to="odom"/>
+    <remap from="~imu"  to="imu" />
+    <remap from="~so3cmd" to="so3cmd"/>
+    <remap from="~vis" to="vis"/>
+  </node>
+  <node pkg="nodelet" type="nodelet" name="so3_controller"
+    args="load so3_controller/Nodelet manager" output="screen">
+  <!-- <node pkg="nodelet" type="nodelet" name="so3_controller"
+    args="standalone so3_controller/Nodelet" output="screen"> -->
+    <rosparam file="$(find uav_simulator)/config/so3_controller.yaml"/>
+    <remap from="~odom" to="odom"/>
+    <remap from="~imu"  to="imu" />
+    <remap from="~so3cmd" to="so3cmd"/>
+    <remap from="~position_cmd" to="position_cmd"/>
+  </node>
+
+  <node pkg="local_sensing_node" type="pcl_render_node" name="pcl_render_node" output="screen">
+    <rosparam file="$(find uav_simulator)/config/mockamap.yaml"/>
+    <rosparam file="$(find uav_simulator)/config/local_sensing.yaml"/>
+    <remap from="~odom" to="odom"/>
+    <remap from="~map_point_cloud" to="/mock_map"/>
+    <remap from="~rendered_pcl" to="rendered_pcl"/>
+    <remap from="~camera_pose" to="camera_pose"/>
+    <remap from="~colordepth" to="colordepth"/>
+    <remap from="~depth" to="depth"/>
+  </node>
+
+</group>
+
+</launch>
