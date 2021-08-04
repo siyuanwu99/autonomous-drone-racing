@@ -4,6 +4,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <cmath>
 
 #include <Eigen/Core>
 
@@ -914,48 +915,68 @@ Maps::Gates3D() {
 
   int _GatesNum;
   int _gateSize;
+  int _maxAngle;
 
   info.nh_private->param("numGates", _GatesNum, 5);
   info.nh_private->param("gateSize", _gateSize, 2);
+  info.nh_private->param("maxAngle", _maxAngle, 10);
 
   double _g_t = 1;
   double _resolution = 1 / info.scale;
+  double _max_t = M_PI / 180 * _maxAngle;
 
   std::uniform_real_distribution<double> rand_x;
   std::uniform_real_distribution<double> rand_y;
   std::uniform_real_distribution<double> rand_h;
+  std::uniform_real_distribution<double> rand_t;
 
   rand_x = std::uniform_real_distribution<double>(_x_l, _x_h);
   rand_y = std::uniform_real_distribution<double>(_y_l, _y_h);
   rand_h = std::uniform_real_distribution<double>(_h_l, _h_h);
+  rand_t = std::uniform_real_distribution<double>(-_max_t, _max_t);
 
+  Eigen::Matrix4f rotation = Eigen::Matrix4f::Identity();
   pcl::PointXYZ pt_random;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_gate;
   
 
   for (int i = 0; i < _GatesNum; i++) {
-    double x, y, h;
+    ptr_gate.reset(new pcl::PointCloud<pcl::PointXYZ>());
+    double x, y, h, t;
 
     x = rand_x(eng);
     y = rand_y(eng);
     h = rand_h(eng);
+    t = rand_t(eng);
     int w = ceil(_gateSize * info.scale);
+
+    rotation(0, 0) =  cos(t);
+    rotation(0, 1) = -sin(t);
+    rotation(1, 0) =  sin(t);
+    rotation(1, 1) =  cos(t);
 
     for (int j = - w / 2; j < w / 2; j ++) {
       pt_random.x = x;
       pt_random.y = y + j * _resolution;
       pt_random.z = h + w / 2 * _resolution;
-      info.cloud->points.push_back(pt_random);
+      ptr_gate->push_back(pt_random);
       
       pt_random.z = h - w / 2 * _resolution;
-      info.cloud->points.push_back(pt_random);
+      ptr_gate->push_back(pt_random);
 
       pt_random.z = h + j * _resolution;
       pt_random.y = y - w / 2 * _resolution;
-      info.cloud->points.push_back(pt_random);
+      // info.cloud->points.push_back(pt_random);
+      ptr_gate->push_back(pt_random);
 
       pt_random.y = y + w / 2 * _resolution;
-      info.cloud->points.push_back(pt_random);
+      // info.cloud->points.push_back(pt_random);
+      ptr_gate->push_back(pt_random);
     }
+
+    pcl::transformPointCloud((*ptr_gate), (*ptr_gate), rotation);
+    info.cloud->points.insert(info.cloud->points.end(), ptr_gate->begin(), ptr_gate->end());
+    
   }
 
   info.cloud->width     = info.cloud->points.size();

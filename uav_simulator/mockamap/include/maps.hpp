@@ -5,6 +5,7 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/common/transforms.h>
 #include <sensor_msgs/PointCloud2.h>
 
 namespace mocka {

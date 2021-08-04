@@ -44,3 +44,4 @@ roadRad: 10
 # # 5: random gates
 numGates: 10
 gateSize: 2
+maxAngle: 30
