@@ -1,11 +1,17 @@
-TargetTopic:                '/move_base_simple/goal'
-TrajectoryTopic:            '/traj_server/trajectory'
-OdomFrame:                  'odom'
-MaxAccRate:                  5.00
-MaxVelRate:                  10.00
-WeightT:                     128.0
-SmoothEps:                   1.0e-4
-ChiVec:                      [1000.0, 1000.0, 1000.0]
-RelCostTol:                  1.0e-4
-C2Diffeo:                    True
-Retraction:                  False
+TargetTopic    : '/move_base_simple/goal'
+TrajectoryTopic: '/traj_server/trajectory'
+OdomFrame      : 'odom'
+MaxAccRate     : 30.00
+MaxVelRate     : 10.00
+WeightT        : 12800.0
+SmoothEps      : 1.0e-4
+ChiVec         : [10000.0, 10000.0, 10000.0]
+RelCostTol     : 1.0e-6
+C2Diffeo       : True
+Retraction     : True
+NumGates       : 10
+MaxX           : 40
+MaxY           : 10
+MaxZ           : 5
+MaxTheta       : 44
+

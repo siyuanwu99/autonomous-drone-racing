@@ -27,15 +27,14 @@ inline std::vector<Eigen::Matrix<double, 6, -1>> flipNormal(const std::vector<Ei
 
 void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
-    int M = 13;
-    double rmin = 1.0;
-    double rmax = 3.0;
+    int M = config.num;
     Eigen::Vector3d zeroVec(0.0, 0.0, 0.0);
 
     vector<Vector3d> route;
     Eigen::MatrixXd inifin;
-    std::vector<Eigen::MatrixXd> hPolys = genPolySFC(M, zeroVec, rmin, rmax, 0.95, 16, 0.2, 0.7, inifin);
-    simplifySFC(hPolys);
+    std::vector<Eigen::Matrix<double, 3, 2>> gates = genGate(M, config.zBounds, config.yBounds, 
+                                                             config.xBounds, config.tBounds, inifin);
+    std::vector<Eigen::Matrix<double, 6, -1>> hPolys = genGateSFC(M, zeroVec, gates, 2, 0.5, inifin);
 
     Eigen::Matrix3d iniState;
     Eigen::Matrix3d finState;
@@ -44,15 +43,28 @@ void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr
     double vmax = config.maxVelRate, amax = config.maxAccRate;
     Eigen::Vector3d chi(config.chiVec[0], config.chiVec[1], config.chiVec[2]);  /* weights of p, v, a */
     double smoothEps = config.smoothEps;
-    double res = INFINITY;
+    double res = 3;
     int itg = 8;
 
     std::chrono::high_resolution_clock::time_point tic = std::chrono::high_resolution_clock::now();
     GCOPTER nonlinOpt;
     Trajectory traj;
 
-    if (!nonlinOpt.setup(config.weightT, 1.0, iniState, finState, flipNormal(hPolys), res, itg, vmax, amax, smoothEps, chi, config.c2Diffeo, config.retraction))
+    if (!nonlinOpt.setup(config.weightT, 1.0, iniState, finState, hPolys, res, itg, vmax, amax, smoothEps, chi, config.c2Diffeo, config.retraction))
     {
+        vec_E<Polyhedron3D> polyhedra;
+        polyhedra.reserve(hPolys.size());
+        for (const auto &ele : hPolys)
+        {
+            Polyhedron3D hPoly;
+            for (int i = 0; i < ele.cols(); i++)
+            {
+                hPoly.add(Hyperplane3D(ele.col(i).tail<3>(), -ele.col(i).head<3>()));
+            }
+            polyhedra.push_back(hPoly);
+        }
+        visualization.visualizePolyH(polyhedra, ros::Time::now());
+        ROS_WARN("Planner cannot find a feasible solution in the current problem.");
         return;
     }
 
@@ -61,6 +73,7 @@ void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr
     double compTime = std::chrono::duration_cast<std::chrono::microseconds>(toc - tic).count() * 1.0e-3;
     std::cout << std::chrono::duration_cast<std::chrono::microseconds>(toc - tic).count() * 1.0e-3 << "ms" << std::endl;
     std::cout << "Max Vel Rate: " << traj.getMaxVelRate() << std::endl;
+    std::cout << "Total Time: " << traj.getTotalDuration() << std::endl;
 
     if (traj.getPieceNum() > 0)
     {
@@ -77,11 +90,13 @@ void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr
             Polyhedron3D hPoly;
             for (int i = 0; i < ele.cols(); i++)
             {
-                hPoly.add(Hyperplane3D(ele.col(i).tail<3>(), -ele.col(i).head<3>()));
+                hPoly.add(Hyperplane3D(ele.col(i).tail<3>(), ele.col(i).head<3>()));
             }
             polyhedra.push_back(hPoly);
         }
         visualization.visualizePolyH(polyhedra, ros::Time::now());
+        ROS_WARN("PolyH has been published");
+
     }
 }
 
