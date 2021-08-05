@@ -163,7 +163,7 @@ inline std::vector<Eigen::MatrixXd> genPolySFC(const int &num,
     {
         lo = co;
         theta = (uniformReal(gen) - 0.5) * M_PI * vturn;
-        psi = (uniformReal(gen) - 0.5) * M_PI * hturn;
+        psi   = (uniformReal(gen) - 0.5) * M_PI * hturn;
         fd = e1 + e2 * tan(psi) + e3 * tan(theta);
         fd.normalize();
 
@@ -182,6 +182,175 @@ inline std::vector<Eigen::MatrixXd> genPolySFC(const int &num,
     inifin.col(1) = co;
 
     return hPolys;
+}
+
+inline Eigen::MatrixXd genGatePoly(const Eigen::Vector3d &gatePos,
+                                   const Eigen::Vector3d &gateDir,
+                                   const double &gateWidth,
+                                   const double &gateLength) {
+    double hlfLength = gateLength / 2;
+    double hlfWidth = gateWidth / 2;
+    Eigen::Vector3d unitZ(0, 0, 1);
+    Eigen::Vector3d unitL;
+    unitL = unitZ.cross(gateDir);
+    unitL.normalize();
+
+    Eigen::MatrixXd polyH(6, 6);
+
+    /* front and back */
+    polyH.col(0) << gateDir, gatePos + gateDir * hlfLength;
+    polyH.col(1) << -gateDir, gatePos - gateDir * hlfLength;
+
+    /* up and down */
+    polyH.col(2) << unitZ, gatePos + unitZ * hlfWidth;
+    polyH.col(3) << -unitZ, gatePos - unitZ * hlfWidth;
+
+    /* left and right */
+    polyH.col(4) << unitL, gatePos + unitL * hlfWidth;
+    polyH.col(5) << -unitL, gatePos - unitL * hlfWidth;
+
+    std::cout << polyH << std::endl;
+
+    return polyH;
+}
+
+inline Eigen::MatrixXd genBetweenGatePoly(const Eigen::Vector3d &lpos,
+                                          const Eigen::Vector3d &ldir,
+                                          const Eigen::Vector3d &npos,
+                                          const Eigen::Vector3d &ndir,
+                                          const double &gateWidth,
+                                          const double &gateLength,
+                                          const int &alpha) {
+    Eigen::MatrixXd polyH(6, 6);
+    double zLength = npos[2] - lpos[2];
+
+    Eigen::Vector3d unitZ(0, 0, 1);
+    double zSigned = copysign(1, zLength);
+
+    /* up and down */
+    double zShift = zLength + zSigned * gateWidth;
+    polyH.col(0) << zSigned * unitZ, npos + zShift * unitZ;
+    polyH.col(1) << -zSigned * unitZ, lpos - zShift * unitZ;
+
+    /* front and back */
+    double delta = gateLength / 2 - 0.1;
+    polyH.col(2) << ndir, npos - delta * ndir;
+    polyH.col(3) << -ldir,lpos + delta * ldir;
+
+    /* left and right */
+    Eigen::Vector3d nUnitLeft, lUnitLeft;
+    nUnitLeft = unitZ.cross(ndir);
+    lUnitLeft = unitZ.cross(ldir);
+    double hShift = alpha * gateWidth;  // horizontal shift
+
+    Eigen::Vector3d lpl, lpr, npl, npr;  // last left, new right, etc...
+    lpl = lpos + hShift * lUnitLeft;
+    lpr = lpos - hShift * lUnitLeft;
+    npl = npos + hShift * nUnitLeft;
+    npr = npos - hShift * nUnitLeft;
+
+    Eigen::Vector3d leftEdge = npl - lpl;
+    leftEdge = unitZ.cross(leftEdge);
+    leftEdge.normalize();
+
+    polyH.col(4) << leftEdge, npl;
+
+    Eigen::Vector3d rightEdge = npr - lpr;
+    rightEdge = rightEdge.cross(unitZ);
+    rightEdge.normalize();
+
+    polyH.col(5) << rightEdge, npr;
+
+    std::cout << "----- out ------" << std::endl;
+    std::cout << polyH << std::endl;
+    std::cout << "----- in  ------" << std::endl;
+
+    return polyH;
+}
+
+inline std::vector<Eigen::Matrix<double, 6, -1>> genGateSFC(const int &num,
+                                               const Eigen::Vector3d &offset,
+                                               const std::vector<Eigen::Matrix<double, 3, 2>> &gates,
+                                               const double &gateWidth,
+                                               const double &gateLength,
+                                               const Eigen::MatrixXd &inifin) {
+
+
+    
+    std::vector<Eigen::Matrix<double, 6, -1>> hPolys;
+    Eigen::Matrix<double, 6, -1> hPoly;
+    hPolys.reserve(2 * num + 1);
+
+
+    Eigen::Vector3d gatePos, gateAngle;
+    Eigen::Vector3d lgatePos, lgateAngle;  // last value
+
+    lgatePos = inifin.col(0);
+    lgateAngle << 1, 0, 0;
+
+    
+    for (int i = 0; i < num; i++) {
+        gatePos   = gates[i].col(0);
+        gateAngle = gates[i].col(1);
+
+        hPoly = genBetweenGatePoly(lgatePos, lgateAngle,
+                                   gatePos, gateAngle,
+                                   gateWidth, gateLength, 2);
+        hPolys.push_back(hPoly);
+
+        hPoly = genGatePoly(gatePos, gateAngle, gateWidth, gateLength);
+        hPolys.push_back(hPoly);
+
+        lgatePos = gatePos;
+        lgateAngle = gateAngle;        
+    }
+
+    gatePos = inifin.col(1);
+    gateAngle << 1, 0, 0;
+    hPoly = genBetweenGatePoly(lgatePos, lgateAngle,
+                               gatePos, gateAngle,
+                               gateWidth, gateLength, 2);
+    hPolys.push_back(hPoly);
+
+    return hPolys;
+}
+
+inline std::vector<Eigen::Matrix<double, 3, 2>> genGate(const int &num,
+                                                        const double zMax,
+                                                        const double yMax,
+                                                        const double xMax,
+                                                        const double tMax,
+                                                        Eigen::MatrixXd &inifin
+                                                        ) {
+    static std::mt19937_64 gen;
+    static std::uniform_real_distribution<double> uniformReal(0.0, 1.0);
+    
+    std::vector<Eigen::Matrix<double, 3, 2>> gates;
+    Eigen::Matrix<double, 3, 2> gate;
+    gates.reserve(num);
+    
+    inifin.resize(3, 2);
+    inifin.col(0) << 0, 0, 0;
+    inifin.col(1) << xMax, 0, 0;
+
+    double xGap = xMax / (num + 1);
+
+    for (int i = 0; i < num; i++) {
+        double theta = tMax * M_PI / 180 * (uniformReal(gen) - 0.5);
+
+        gate.col(0) << xGap * (i + 1),
+                       yMax * (uniformReal(gen) - 0.5),
+                       zMax * uniformReal(gen);
+        gate.col(1) << cos(theta), sin(theta), 0;
+
+        gates.push_back(gate);
+        
+        std::cout << "===============" << std::endl;
+        std::cout << "Gate" << i + 1 << '\n' << gate << std::endl;
+    }
+
+    return gates;
+
 }
 
 #endif

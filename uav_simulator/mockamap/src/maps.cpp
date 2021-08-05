@@ -950,10 +950,10 @@ Maps::Gates3D() {
     t = rand_t(eng);
     int w = ceil(_gateSize * info.scale);
 
-    rotation(0, 0) =  cos(t);
+    rotation(0, 0) = cos(t);
     rotation(0, 1) = -sin(t);
-    rotation(1, 0) =  sin(t);
-    rotation(1, 1) =  cos(t);
+    rotation(1, 0) = sin(t);
+    rotation(1, 1) = cos(t);
 
     for (int j = - w / 2; j < w / 2; j ++) {
       pt_random.x = x;
@@ -966,11 +966,9 @@ Maps::Gates3D() {
 
       pt_random.z = h + j * _resolution;
       pt_random.y = y - w / 2 * _resolution;
-      // info.cloud->points.push_back(pt_random);
       ptr_gate->push_back(pt_random);
 
       pt_random.y = y + w / 2 * _resolution;
-      // info.cloud->points.push_back(pt_random);
       ptr_gate->push_back(pt_random);
     }
 
@@ -979,9 +977,9 @@ Maps::Gates3D() {
     
   }
 
-  info.cloud->width     = info.cloud->points.size();
-  info.cloud->height    = 1;
-  info.cloud->is_dense  = true;
+  info.cloud->width    = info.cloud->points.size();
+  info.cloud->height   = 1;
+  info.cloud->is_dense = true;
 
   pcl2ros();
 }

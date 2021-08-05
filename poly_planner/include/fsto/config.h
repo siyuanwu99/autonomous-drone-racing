@@ -20,6 +20,12 @@ struct Config
     bool c2Diffeo;
     bool retraction;
 
+    int num;
+    double xBounds;
+    double yBounds;
+    double zBounds;
+    double tBounds; 
+
     static void loadParameters(Config &conf, const ros::NodeHandle &nh_priv)
     {
         nh_priv.getParam("TargetTopic", conf.targetTopic);
@@ -33,6 +39,11 @@ struct Config
         nh_priv.getParam("RelCostTol", conf.relCostTol);
         nh_priv.getParam("C2Diffeo", conf.c2Diffeo);
         nh_priv.getParam("Retraction", conf.retraction);
+        nh_priv.getParam("NumGates", conf.num);
+        nh_priv.getParam("MaxX", conf.xBounds);
+        nh_priv.getParam("MaxY", conf.yBounds);
+        nh_priv.getParam("MaxZ", conf.zBounds);
+        nh_priv.getParam("MaxTheta", conf.tBounds);
     }
 };
 
