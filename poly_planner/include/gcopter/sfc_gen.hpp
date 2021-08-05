@@ -184,4 +184,131 @@ inline std::vector<Eigen::MatrixXd> genPolySFC(const int &num,
     return hPolys;
 }
 
+inline Eigen::MatrixXd genGatePoly(const Eigen::Vector3d &gatePos,
+                                   const Eigen::Vector3d &gateDir,
+                                   const double &gateWidth,
+                                   const double &gateLength) {
+    double hlfLength = gateLength / 2;
+    double hlfWidth = gateWidth / 2;
+    Eigen::Vector3d unitZ(0, 0, 1);
+    Eigen::Vector3d unitL;
+    unitL = unitZ.cross(gateDir);
+    unitL.normalize();
+
+    Eigen::MatrixXd polyH(6, 6);
+
+    /* front and back */
+    polyH.col(0) << gatePos + gateDir * hlfLength, gateDir;
+    polyH.col(1) << gatePos - gateDir * hlfLength, -gateDir;
+
+    /* up and down */
+    polyH.col(2) << gatePos + unitZ * hlfWidth, unitZ;
+    polyH.col(3) << gatePos - unitZ * hlfWidth, -unitZ;
+
+    /* left and right */
+    polyH.col(4) << gatePos + unitL * hlfWidth, unitL;
+    polyH.col(5) << gatePos - unitL * hlfWidth, -unitL;
+
+    return polyH;
+}
+
+inline Eigen::MatrixXd genBetweenGatePoly(const Eigen::Vector3d &lpos,
+                                          const Eigen::Vector3d &ldir,
+                                          const Eigen::Vector3d &npos,
+                                          const Eigen::Vector3d &ndir,
+                                          const double &gateWidth,
+                                          const int &alpha) {
+    Eigen::MatrixXd polyH(6, 6);
+    double zLength = npos[2] - lpos[2];
+
+    Eigen::Vector3d unitZ(0, 0, 1);
+    double zSigned = copysign(1, zLength);
+
+    /* up and down */
+    double zShift = zLength + zSigned * gateWidth;
+    polyH.col(0) << npos + zShift * unitZ, zSigned * unitZ;
+    polyH.col(1) << lpos - zShift * unitZ, zSigned * unitZ;
+
+    /* front and back */
+    polyH.col(2) << npos, ndir;
+    polyH.col(3) << lpos, -ldir;
+
+    /* left and right */
+    Eigen::Vector3d nUnitLeft, lUnitLeft;
+    nUnitLeft = unitZ.cross(ndir);
+    lUnitLeft = unitZ.cross(ldir);
+    double hShift = alpha * gateWidth;  // horizontal shift
+
+    Eigen::Vector3d lpl, lpr, npl, npr;  // last left, new right, etc...
+    lpl = lpos + hShift * lUnitLeft;
+    lpr = lpos - hShift * lUnitLeft;
+    npl = npos + hShift * nUnitLeft;
+    npr = npos - hShift * nUnitLeft;
+
+    Eigen::Vector3d leftEdge = npl - lpl;
+    leftEdge = unitZ.cross(leftEdge);
+    leftEdge.normalize();
+
+    polyH.col(4) << npl, leftEdge;
+
+    Eigen::Vector3d rightEdge = npr - lpr;
+    rightEdge = rightEdge.cross(unitZ);
+    rightEdge.normalize();
+
+    polyH.col(5) << npr, rightEdge;
+
+    return polyH;
+}
+
+inline std::vector<Eigen::MatrixXd> genGateSFC(const int &num,
+                                               const Eigen::Vector3d &offset,
+                                               const std::vector<Eigen::Matrix<double, 3, 2>> &gates,
+                                               const double &gateWidth,
+                                               const double &gateLength,
+                                               Eigen::MatrixXd &inifin) {
+
+    static std::mt19937_64 gen;
+    static std::uniform_real_distribution<double> uniformReal(0.0, 1.0);
+    
+    std::vector<Eigen::MatrixXd> hPolys;
+    Eigen::MatrixXd hPoly;
+    hPolys.reserve(2 * num + 1);
+    inifin.resize(3, 2);
+
+    inifin.col(0) << 0, 0, 0;
+    inifin.col(1) << 40, 0, 0;
+
+    Eigen::Vector3d gatePos, gateAngle;
+    Eigen::Vector3d lgatePos, lgateAngle;  // last value
+
+    lgatePos = offset;
+    lgateAngle << 1, 0, 0;
+
+    
+    for (int i = 0; i < num; i++) {
+        gatePos   = gates[i].col(0);
+        gateAngle = gates[i].col(1);
+
+        hPoly = genBetweenGatePoly(lgatePos, lgateAngle,
+                                   gatePos, gateAngle,
+                                   gateWidth, 2);
+        hPolys.push_back(hPoly);
+
+        hPoly = genGatePoly(gatePos, gateAngle, gateWidth, gateLength);
+        hPolys.push_back(hPoly);
+
+        lgatePos = gatePos;
+        lgateAngle = gateAngle;        
+    }
+
+    gatePos = inifin.col(1);
+    gateAngle << -1, 0, 0;
+    hPoly = genBetweenGatePoly(lgatePos, lgateAngle,
+                               gatePos, gateAngle,
+                               gateWidth, 2);
+    hPolys.push_back(hPoly);
+
+    return hPolys;
+}
+
 #endif
