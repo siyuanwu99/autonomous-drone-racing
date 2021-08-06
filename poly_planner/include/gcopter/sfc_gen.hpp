@@ -12,6 +12,8 @@
 
 #include <cfloat>
 #include <iostream>
+#include <string>
+#include <fstream>
 #include <set>
 
 inline bool extractV(const Eigen::MatrixXd &hPoly,
@@ -221,45 +223,60 @@ inline Eigen::MatrixXd genBetweenGatePoly(const Eigen::Vector3d &lpos,
                                           const double &gateWidth,
                                           const double &gateLength,
                                           const int &alpha) {
-    Eigen::MatrixXd polyH(6, 6);
-    double zLength = npos[2] - lpos[2];
 
-    Eigen::Vector3d unitZ(0, 0, 1);
-    double zSigned = copysign(1, zLength);
+        Eigen::MatrixXd polyH(6, 6);
+        double zLength = npos[2] - lpos[2];
 
-    /* up and down */
-    double zShift = zLength + zSigned * gateWidth;
-    polyH.col(0) << zSigned * unitZ, npos + zShift * unitZ;
-    polyH.col(1) << -zSigned * unitZ, lpos - zShift * unitZ;
+        Eigen::Vector3d unitZ(0, 0, 1);
+        double zSigned = copysign(1, zLength);
 
-    /* front and back */
-    double delta = gateLength / 2 - 0.1;
-    polyH.col(2) << ndir, npos - delta * ndir;
-    polyH.col(3) << -ldir,lpos + delta * ldir;
+        /* up and down */
+        double zShift = 0.25 * zLength + 0.5 * zSigned * gateWidth;
+        polyH.col(0) << zSigned * unitZ, npos + zShift * unitZ;
+        polyH.col(1) << -zSigned * unitZ, lpos - zShift * unitZ;
 
-    /* left and right */
-    Eigen::Vector3d nUnitLeft, lUnitLeft;
-    nUnitLeft = unitZ.cross(ndir);
-    lUnitLeft = unitZ.cross(ldir);
-    double hShift = alpha * gateWidth;  // horizontal shift
+        /* front and back */
+        double delta = gateLength / 2 - 0.1;
+        polyH.col(2) << ndir, npos - delta * ndir;
+        polyH.col(3) << -ldir,lpos + delta * ldir;
 
-    Eigen::Vector3d lpl, lpr, npl, npr;  // last left, new right, etc...
-    lpl = lpos + hShift * lUnitLeft;
-    lpr = lpos - hShift * lUnitLeft;
-    npl = npos + hShift * nUnitLeft;
-    npr = npos - hShift * nUnitLeft;
+        /* left and right */
+        Eigen::Vector3d nUnitLeft, lUnitLeft;
+        nUnitLeft = unitZ.cross(ndir);
+        lUnitLeft = unitZ.cross(ldir);
+        double hShift = alpha * gateWidth;  // horizontal shift
 
-    Eigen::Vector3d leftEdge = npl - lpl;
-    leftEdge = unitZ.cross(leftEdge);
-    leftEdge.normalize();
+    if (ndir.dot(ldir) > 0) {  /* if alpha < 180 degree */
 
-    polyH.col(4) << leftEdge, npl;
+        Eigen::Vector3d lpl, lpr, npl, npr;  // last left, new right, etc...
+        lpl = lpos + hShift * lUnitLeft;
+        lpr = lpos - hShift * lUnitLeft;
+        npl = npos + hShift * nUnitLeft;
+        npr = npos - hShift * nUnitLeft;
 
-    Eigen::Vector3d rightEdge = npr - lpr;
-    rightEdge = rightEdge.cross(unitZ);
-    rightEdge.normalize();
+        Eigen::Vector3d leftEdge = npl - lpl;
+        leftEdge = unitZ.cross(leftEdge);
+        leftEdge.normalize();
 
-    polyH.col(5) << rightEdge, npr;
+        polyH.col(4) << leftEdge, npl;
+
+        Eigen::Vector3d rightEdge = npr - lpr;
+        rightEdge = rightEdge.cross(unitZ);
+        rightEdge.normalize();
+
+        polyH.col(5) << rightEdge, npr;
+    } else { /* if alpha > 180 degree */
+        Eigen::Vector3d d = npos - lpos;
+
+        double lSigned = copysign(1, d.dot(nUnitLeft));
+
+        Eigen::Vector3d lpl, npl;
+        npl = npos + lSigned * hShift * nUnitLeft;
+        lpl = lpos + lSigned * hShift * lUnitLeft;
+
+        polyH.col(4) << -ndir, lpl;
+        polyH.col(5) << ldir, npl;
+    }
 
     std::cout << "----- out ------" << std::endl;
     std::cout << polyH << std::endl;
@@ -351,6 +368,48 @@ inline std::vector<Eigen::Matrix<double, 3, 2>> genGate(const int &num,
 
     return gates;
 
+}
+
+inline std::vector<Eigen::Matrix<double, 3, 2>> readGate(const std::string filepath,
+                                                         Eigen::MatrixXd &inifin) {
+    inifin.resize(3, 2);
+
+    std::vector<Eigen::Matrix<double, 3, 2>> gates;
+    Eigen::Matrix<double, 3, 2> gate;
+    std::vector<double> buffer;
+    buffer.reserve(4);
+
+    std::ifstream fin(filepath);
+    std::string line_info, input_rst;
+    if (fin) {
+        for (int i = 0; getline(fin, line_info); i++) {
+            std::stringstream input(line_info);
+            for (int j = 0; input >> input_rst; ++j) {
+                std::string::size_type size;
+                if (i == 0) {
+                    inifin(j) = std::stof(input_rst, &size);
+                } else {
+                    buffer[j] = std::stof(input_rst, &size);
+                }
+            }
+
+            if (i == 0 ) {
+                std::cout << inifin << std::endl;
+                continue;
+            }
+            gate.col(0) << buffer[0], buffer[1], buffer[2];
+            double theta = buffer[3] * M_PI / 180;
+            buffer.clear();
+            gate.col(1) << cos(theta), sin(theta), 0;
+            gates.push_back(gate);
+            std::cout << "===== Gate " << i << " =====" << std::endl; 
+            std::cout << gate << std::endl;
+        }
+
+    } else {
+        ROS_ERROR("[Reader]: Failed to read gates from files, file doesnot exist.");
+    }
+    return gates;
 }
 
 #endif

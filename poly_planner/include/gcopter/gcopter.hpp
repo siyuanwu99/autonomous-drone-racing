@@ -1882,8 +1882,7 @@ public:
                            Eigen::VectorXd &vecT,
                            Eigen::Matrix3Xd &vecInP) const
     {
-        constexpr double maxSpeedForAllocation = 10.0;
-        const double allocationSpeed = std::min(vmax, maxSpeedForAllocation);
+        const double allocationSpeed = vmax;
 
         int M = vecT.size();
         Eigen::Vector3d lastP, curP, delta;

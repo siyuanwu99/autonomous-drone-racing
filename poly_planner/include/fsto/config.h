@@ -11,6 +11,7 @@ struct Config
     std::string targetTopic;
     std::string trajectoryTopic;
     std::string odomFrame;
+    std::string filepath;
     double maxAccRate;
     double maxVelRate;
     double weightT;
@@ -19,6 +20,8 @@ struct Config
     double relCostTol;
     bool c2Diffeo;
     bool retraction;
+    int itg;
+    double res;
 
     int num;
     double xBounds;
@@ -31,6 +34,7 @@ struct Config
         nh_priv.getParam("TargetTopic", conf.targetTopic);
         nh_priv.getParam("TrajectoryTopic", conf.trajectoryTopic);
         nh_priv.getParam("OdomFrame", conf.odomFrame);
+        nh_priv.getParam("GateFilepath", conf.filepath);
         nh_priv.getParam("MaxAccRate", conf.maxAccRate);
         nh_priv.getParam("MaxVelRate", conf.maxVelRate);
         nh_priv.getParam("WeightT", conf.weightT);
@@ -44,6 +48,8 @@ struct Config
         nh_priv.getParam("MaxY", conf.yBounds);
         nh_priv.getParam("MaxZ", conf.zBounds);
         nh_priv.getParam("MaxTheta", conf.tBounds);
+        nh_priv.getParam("Res", conf.res);
+        nh_priv.getParam("NumIntSegs", conf.itg);
     }
 };
 
