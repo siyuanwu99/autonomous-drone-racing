@@ -111,7 +111,7 @@ void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr
         Time stamp = ros::Time::now();
         polynomialTrajConverter(traj, trajMsg, Eigen::Isometry3d::Identity(), stamp);
         trajPub.publish(trajMsg);
-        visualization.visualize(traj, route, ros::Time::now(), compTime);
+        visualization.visualize(traj, route, ros::Time::now(), compTime, traj.getMaxVelRate(), traj.getTotalDuration());
 
         vec_E<Polyhedron3D> polyhedra;
         polyhedra.reserve(hPolys.size());
@@ -198,7 +198,7 @@ Visualization::Visualization(Config &conf, NodeHandle &nh_)
     textPub = nh.advertise<visualization_msgs::Marker>("/visualization/text", 1);
 }
 
-void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector3d> &route, Time timeStamp, double compT)
+void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector3d> &route, Time timeStamp, double compT, double maxV, double totalT)
 {
     visualization_msgs::Marker routeMarker, wayPointsMarker, appliedTrajMarker;
 
@@ -318,8 +318,8 @@ void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector
         textMarker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
         textMarker.action = visualization_msgs::Marker::ADD;
 
-        textMarker.pose.position.x = 16.5;
-        textMarker.pose.position.y = -11.0;
+        textMarker.pose.position.x = -9;
+        textMarker.pose.position.y = -16.0;
         textMarker.pose.position.z = 6.0;
         textMarker.pose.orientation.x = 0.0;
         textMarker.pose.orientation.y = 0.0;
@@ -332,12 +332,21 @@ void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector
         textMarker.color.g = 0.0;
         textMarker.color.b = 0.0;
         textMarker.color.a = 1.0;
-        textMarker.text = "Comp:";
+        textMarker.text = "Comp: ";
         textMarker.text += to_string((int)(compT));
         textMarker.text += ".";
         textMarker.text += to_string((int)(compT * 10) % 10);
-        textMarker.text += "ms";
-
+        textMarker.text += "ms\n";
+        textMarker.text += "Max speed: ";
+        textMarker.text += to_string((int)(maxV));
+        textMarker.text += ".";
+        textMarker.text += to_string((int)(maxV * 100) % 100);
+        textMarker.text += "m/s\n";
+        textMarker.text += "Total time: ";
+        textMarker.text += to_string((int)(totalT));
+        textMarker.text += ".";
+        textMarker.text += to_string((int)(totalT * 100) % 100);
+        textMarker.text += "s\n";
         textPub.publish(textMarker);
     }
 }

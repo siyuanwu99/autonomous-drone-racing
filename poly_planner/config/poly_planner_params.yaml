@@ -5,7 +5,7 @@ GateFilepath   : "/home/siyuan/workspace/drone_racing/src/poly_planner/config/Al
 Res            : 10
 NumIntSegs     : 32
 MaxAccRate     : 64.00
-MaxVelRate     : 35.00
+MaxVelRate     : 30.00
 WeightT        : 1.0e+7
 SmoothEps      : 1.0e-4
 ChiVec         : [1.0e+6, 1.0e+6, 1.0e+6]
