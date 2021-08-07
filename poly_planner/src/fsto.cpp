@@ -25,6 +25,33 @@ inline std::vector<Eigen::Matrix<double, 6, -1>> flipNormal(const std::vector<Ei
     return hPolysON;
 }
 
+inline Eigen::Vector3d jetColor(double a) {
+    double s = a * 5;
+    Eigen::Vector3d c;  // [r, g, b]
+    switch ((int)floor(s))
+    {
+    case 0:
+        c << 0, 0, s;
+        break;
+    case 1:
+        c << 0, s - 1, 1;
+        break;
+    case 2:
+        c << s - 2, 1, 3-s; 
+        break;
+    case 3:
+        c << 1, 4 - s, 0;
+        break;
+    case 4:
+        c << 5 - s, 0, 0;
+        break;
+    default:
+        c << 0.5, 0.5, 0.5;
+        break;
+    }
+    return c;
+}
+
 void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
     int M = config.num;
@@ -32,8 +59,10 @@ void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr
 
     vector<Vector3d> route;
     Eigen::MatrixXd inifin;
-    std::vector<Eigen::Matrix<double, 3, 2>> gates = genGate(M, config.zBounds, config.yBounds, 
-                                                             config.xBounds, config.tBounds, inifin);
+    // std::vector<Eigen::Matrix<double, 3, 2>> gates = genGate(M, config.zBounds, config.yBounds, 
+    //                                                          config.xBounds, config.tBounds, inifin);
+    std::vector<Eigen::Matrix<double, 3, 2>> gates = readGate(config.filepath, inifin);
+    M = gates.size();
     std::vector<Eigen::Matrix<double, 6, -1>> hPolys = genGateSFC(M, zeroVec, gates, 2, 0.5, inifin);
 
     Eigen::Matrix3d iniState;
@@ -43,8 +72,8 @@ void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr
     double vmax = config.maxVelRate, amax = config.maxAccRate;
     Eigen::Vector3d chi(config.chiVec[0], config.chiVec[1], config.chiVec[2]);  /* weights of p, v, a */
     double smoothEps = config.smoothEps;
-    double res = 3;
-    int itg = 8;
+    double res = config.res;
+    int itg = config.itg;
 
     std::chrono::high_resolution_clock::time_point tic = std::chrono::high_resolution_clock::now();
     GCOPTER nonlinOpt;
@@ -59,9 +88,10 @@ void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr
             Polyhedron3D hPoly;
             for (int i = 0; i < ele.cols(); i++)
             {
-                hPoly.add(Hyperplane3D(ele.col(i).tail<3>(), -ele.col(i).head<3>()));
+                hPoly.add(Hyperplane3D(ele.col(i).tail<3>(), ele.col(i).head<3>()));
             }
             polyhedra.push_back(hPoly);
+            
         }
         visualization.visualizePolyH(polyhedra, ros::Time::now());
         ROS_WARN("Planner cannot find a feasible solution in the current problem.");
@@ -81,7 +111,7 @@ void MavGlobalPlanner::targetCallBack(const geometry_msgs::PoseStamped::ConstPtr
         Time stamp = ros::Time::now();
         polynomialTrajConverter(traj, trajMsg, Eigen::Isometry3d::Identity(), stamp);
         trajPub.publish(trajMsg);
-        visualization.visualize(traj, route, ros::Time::now(), compTime);
+        visualization.visualize(traj, route, ros::Time::now(), compTime, traj.getMaxVelRate(), traj.getTotalDuration());
 
         vec_E<Polyhedron3D> polyhedra;
         polyhedra.reserve(hPolys.size());
@@ -168,7 +198,7 @@ Visualization::Visualization(Config &conf, NodeHandle &nh_)
     textPub = nh.advertise<visualization_msgs::Marker>("/visualization/text", 1);
 }
 
-void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector3d> &route, Time timeStamp, double compT)
+void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector3d> &route, Time timeStamp, double compT, double maxV, double totalT)
 {
     visualization_msgs::Marker routeMarker, wayPointsMarker, appliedTrajMarker;
 
@@ -253,16 +283,25 @@ void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector
         Vector3d lastX = appliedTraj.getPos(0.0);
         for (double t = T; t < appliedTraj.getTotalDuration(); t += T)
         {
+            std_msgs::ColorRGBA c;
+            Eigen::Vector3d jets = jetColor(
+                appliedTraj.getVel(t).norm() / config.maxVelRate);
+            c.r = jets[0];
+            c.g = jets[1];
+            c.b = jets[2];
+
             geometry_msgs::Point point;
             Vector3d X = appliedTraj.getPos(t);
             point.x = lastX(0);
             point.y = lastX(1);
             point.z = lastX(2);
             appliedTrajMarker.points.push_back(point);
+            appliedTrajMarker.colors.push_back(c);
             point.x = X(0);
             point.y = X(1);
             point.z = X(2);
             appliedTrajMarker.points.push_back(point);
+            appliedTrajMarker.colors.push_back(c);
             lastX = X;
         }
         appliedTrajectoryPub.publish(appliedTrajMarker);
@@ -279,8 +318,8 @@ void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector
         textMarker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
         textMarker.action = visualization_msgs::Marker::ADD;
 
-        textMarker.pose.position.x = 16.5;
-        textMarker.pose.position.y = -11.0;
+        textMarker.pose.position.x = -9;
+        textMarker.pose.position.y = -16.0;
         textMarker.pose.position.z = 6.0;
         textMarker.pose.orientation.x = 0.0;
         textMarker.pose.orientation.y = 0.0;
@@ -293,12 +332,21 @@ void Visualization::visualize(const Trajectory &appliedTraj, const vector<Vector
         textMarker.color.g = 0.0;
         textMarker.color.b = 0.0;
         textMarker.color.a = 1.0;
-        textMarker.text = "Comp:";
+        textMarker.text = "Comp: ";
         textMarker.text += to_string((int)(compT));
         textMarker.text += ".";
         textMarker.text += to_string((int)(compT * 10) % 10);
-        textMarker.text += "ms";
-
+        textMarker.text += "ms\n";
+        textMarker.text += "Max speed: ";
+        textMarker.text += to_string((int)(maxV));
+        textMarker.text += ".";
+        textMarker.text += to_string((int)(maxV * 100) % 100);
+        textMarker.text += "m/s\n";
+        textMarker.text += "Total time: ";
+        textMarker.text += to_string((int)(totalT));
+        textMarker.text += ".";
+        textMarker.text += to_string((int)(totalT * 100) % 100);
+        textMarker.text += "s\n";
         textPub.publish(textMarker);
     }
 }
@@ -310,3 +358,4 @@ void Visualization::visualizePolyH(const vec_E<Polyhedron3D> &polyhedra, ros::Ti
     poly_msg.header.stamp = timeStamp;
     hPolyPub.publish(poly_msg);
 }
+

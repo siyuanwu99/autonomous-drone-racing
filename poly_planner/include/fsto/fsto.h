@@ -32,7 +32,7 @@ public:
     ros::Publisher hPolyPub;
     ros::Publisher textPub;
 
-    void visualize(const Trajectory &appliedTraj, const std::vector<Eigen::Vector3d> &route, ros::Time timeStamp, double compT);
+    void visualize(const Trajectory &appliedTraj, const std::vector<Eigen::Vector3d> &route, ros::Time timeStamp, double compT, double maxV, double totalT);
     void visualizePolyH(const vec_E<Polyhedron3D> &polyhedra, ros::Time timeStamp);
 };
 
