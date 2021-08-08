@@ -26,7 +26,7 @@ inline std::vector<Eigen::Matrix<double, 6, -1>> flipNormal(const std::vector<Ei
 }
 
 inline Eigen::Vector3d jetColor(double a) {
-    double s = a * 5;
+    double s = a * 4;
     Eigen::Vector3d c;  // [r, g, b]
     switch ((int)floor(s))
     {
@@ -42,9 +42,9 @@ inline Eigen::Vector3d jetColor(double a) {
     case 3:
         c << 1, 4 - s, 0;
         break;
-    case 4:
-        c << 5 - s, 0, 0;
-        break;
+    // case 4:
+    //     c << 5 - s, 0, 0;
+    //     break;
     default:
         c << 0.5, 0.5, 0.5;
         break;
