@@ -6,7 +6,7 @@
 #include "decomp_util/ellipsoid_decomp.h"
 #include "decomp_ros_utils/data_ros_utils.h"
 #include "gcopter/gcopter.hpp"
-#include "gcopter/sfc_gen.hpp"
+#include "sfc_gen.hpp"
 
 #include <iostream>
 #include <memory>

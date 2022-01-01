@@ -3,8 +3,8 @@
 
 #define _USE_MATH_DEFINES
 
-#include "quickhull.hpp"
-#include "geoutils.hpp"
+#include "gcopter/quickhull.hpp"
+#include "gcopter/geoutils.hpp"
 
 #include <random>
 #include <deque>
@@ -216,6 +216,20 @@ inline Eigen::MatrixXd genGatePoly(const Eigen::Vector3d &gatePos,
     return polyH;
 }
 
+/**
+ * @brief generate polygon between two gates
+ * 
+ * Modified Dec. 22, 2021: remove gates, overlap between gate polygons
+ * 
+ * @param lpos 
+ * @param ldir 
+ * @param npos 
+ * @param ndir 
+ * @param gateWidth 
+ * @param gateLength 
+ * @param alpha 
+ * @return Eigen::MatrixXd 
+ */
 inline Eigen::MatrixXd genBetweenGatePoly(const Eigen::Vector3d &lpos,
                                           const Eigen::Vector3d &ldir,
                                           const Eigen::Vector3d &npos,
@@ -285,6 +299,17 @@ inline Eigen::MatrixXd genBetweenGatePoly(const Eigen::Vector3d &lpos,
     return polyH;
 }
 
+/**
+ * @brief generate safe corridors
+ * 
+ * @param num 
+ * @param offset 
+ * @param gates 
+ * @param gateWidth 
+ * @param gateLength 
+ * @param inifin 
+ * @return std::vector<Eigen::Matrix<double, 6, -1>> 
+ */
 inline std::vector<Eigen::Matrix<double, 6, -1>> genGateSFC(const int &num,
                                                const Eigen::Vector3d &offset,
                                                const std::vector<Eigen::Matrix<double, 3, 2>> &gates,
@@ -315,8 +340,8 @@ inline std::vector<Eigen::Matrix<double, 6, -1>> genGateSFC(const int &num,
                                    gateWidth, gateLength, 2);
         hPolys.push_back(hPoly);
 
-        hPoly = genGatePoly(gatePos, gateAngle, gateWidth, gateLength);
-        hPolys.push_back(hPoly);
+        // hPoly = genGatePoly(gatePos, gateAngle, gateWidth, gateLength);
+        // hPolys.push_back(hPoly);
 
         lgatePos = gatePos;
         lgateAngle = gateAngle;        
@@ -332,6 +357,18 @@ inline std::vector<Eigen::Matrix<double, 6, -1>> genGateSFC(const int &num,
     return hPolys;
 }
 
+
+/**
+ * @brief generate gates
+ * 
+ * @param num 
+ * @param zMax 
+ * @param yMax 
+ * @param xMax 
+ * @param tMax 
+ * @param inifin 
+ * @return std::vector<Eigen::Matrix<double, 3, 2>> 
+ */
 inline std::vector<Eigen::Matrix<double, 3, 2>> genGate(const int &num,
                                                         const double zMax,
                                                         const double yMax,
@@ -345,7 +382,7 @@ inline std::vector<Eigen::Matrix<double, 3, 2>> genGate(const int &num,
     std::vector<Eigen::Matrix<double, 3, 2>> gates;
     Eigen::Matrix<double, 3, 2> gate;
     gates.reserve(num);
-    
+
     inifin.resize(3, 2);
     inifin.col(0) << 0, 0, 0;
     inifin.col(1) << xMax, 0, 0;
@@ -361,7 +398,7 @@ inline std::vector<Eigen::Matrix<double, 3, 2>> genGate(const int &num,
         gate.col(1) << cos(theta), sin(theta), 0;
 
         gates.push_back(gate);
-        
+
         std::cout << "===============" << std::endl;
         std::cout << "Gate" << i + 1 << '\n' << gate << std::endl;
     }
@@ -370,6 +407,15 @@ inline std::vector<Eigen::Matrix<double, 3, 2>> genGate(const int &num,
 
 }
 
+/**
+ * @brief read gates data (location and direction) from filepath
+ * 
+ *      first line: start and end position
+ *      folloing lines: gates position and direction angle
+ * @param filepath 
+ * @param inifin 
+ * @return std::vector<Eigen::Matrix<double, 3, 2>> 
+ */
 inline std::vector<Eigen::Matrix<double, 3, 2>> readGate(const std::string filepath,
                                                          Eigen::MatrixXd &inifin) {
     inifin.resize(3, 2);

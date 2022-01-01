@@ -1,7 +1,7 @@
 TargetTopic    : '/move_base_simple/goal'
 TrajectoryTopic: '/traj_server/trajectory'
 OdomFrame      : 'odom'
-GateFilepath   : "/home/siyuan/workspace/drone_racing/src/poly_planner/config/AlphaPilot.txt"
+GateFilepath   : "/home/siyuan/workspace/corridor-based_traj_opt/src/poly_planner/config/AlphaPilot.txt"
 Res            : 10
 NumIntSegs     : 32
 MaxAccRate     : 64.00
@@ -13,7 +13,7 @@ RelCostTol     : 1.0e-7
 C2Diffeo       : True
 Retraction     : True
 NumGates       : 10
-MaxX           : 40
-MaxY           : 10
-MaxZ           : 10
+MaxX           : 4
+MaxY           : 1
+MaxZ           : 1
 MaxTheta       : 10
